@@ -1,6 +1,7 @@
 from Agent import Agent, AgentGreedy
 from WarehouseEnv import WarehouseEnv, manhattan_distance
 import random
+import time
 
 
 # TODO: section a : 3
@@ -13,9 +14,60 @@ class AgentGreedyImproved(AgentGreedy):
 
 
 class AgentMinimax(Agent):
-    # TODO: section b : 4
     def run_step(self, env: WarehouseEnv, agent_id, time_limit):
-        raise NotImplementedError()
+        start_time = time.time()
+        deadline = start_time + 0.99 * time_limit
+
+        def minimax(state: WarehouseEnv, current_id: int, depth: int) -> float:
+            if deadline <= time.time() or depth <= 0 or state.done():
+                return self.heuristic(state, agent_id)
+
+            operators, children = self.successors(state, current_id)
+            if not operators:
+                return self.heuristic(state, agent_id)
+
+            other_id = (current_id + 1) % 2
+
+            if current_id == agent_id:  # maximize
+                cur_max = float("-inf")
+                for child in children:
+                    cur_max = max(cur_max, minimax(child, other_id, depth - 1))
+                    if deadline <= time.time():
+                        break
+                return cur_max
+            else:  # minimize
+                cur_min = float("inf")
+                for child in children:
+                    cur_min = min(cur_min, minimax(child, other_id, depth - 1))
+                    if deadline <= time.time():
+                        break
+                return cur_min
+
+        legal = env.get_legal_operators(agent_id)
+        if not legal:
+            return "park"
+
+        best_op = legal[0]
+        depth = 0
+        while deadline > time.time():
+            operators, children = self.successors(env, agent_id)
+            if not operators:
+                break
+
+            local_best_op = operators[0]
+            local_best_val = float("-inf")
+            for op, child in zip(operators, children):
+                val = minimax(child, (agent_id + 1) % 2, depth)
+                if val > local_best_val:
+                    local_best_val = val
+                    local_best_op = op
+                if deadline <= time.time():
+                    break
+
+            best_op = local_best_op
+            depth += 1
+
+        return best_op
 
 
 class AgentAlphaBeta(Agent):
