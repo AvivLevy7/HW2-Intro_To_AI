@@ -18,7 +18,7 @@ def smart_heuristic(env: WarehouseEnv, robot_id: int):
             if my_cost > cost:
                 my_cost = cost
                 dst = package.position
-        return my_cost
+        return (my_cost,dst)
     def getdistocharge(cur_robot):
         my_cost = float("inf")
         for charge in env.charge_stations:
@@ -26,12 +26,12 @@ def smart_heuristic(env: WarehouseEnv, robot_id: int):
             my_cost = my_cost if my_cost < cost else cost
         return (-1)*my_cost
     credit_diff = robot.credit - other_robot.credit
-    dst_my_nx_pac = getdistopac(robot)
-    dst_other_nx_pac = getdistopac(other_robot)
+    dst_my_nx_pac, dstrob = getdistopac(robot)
+    dst_other_nx_pac,dstother = getdistopac(other_robot)
     dst_my_charge = getdistocharge(robot) if robot.battery < 9 and robot.credit > 0 else 0
     battery_diff = robot.battery - other_robot.battery
     dst_diff = dst_other_nx_pac - dst_my_nx_pac
-    adv = -manhattan_distance(robot.position,dst) if robot.package is None else -manhattan_distance(robot.position,robot.package.destination)
+    adv = -manhattan_distance(robot.position,dstrob) if robot.package is None else -manhattan_distance(robot.position,robot.package.destination)
     return 5*credit_diff + dst_diff + dst_my_charge + (0.5)*battery_diff + adv
 
 class AgentGreedyImproved(AgentGreedy):
