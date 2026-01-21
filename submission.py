@@ -9,57 +9,32 @@ import time
 def smart_heuristic(env: WarehouseEnv, robot_id: int):
     robot = env.get_robot(robot_id)
     other_robot = env.get_robot((robot_id + 1) % 2)
-
     def getdistopac(cur_robot):
         if cur_robot.package is not None:
-            return manhattan_distance(cur_robot.position, cur_robot.package.destination), cur_robot.package
-
-        my_cost, pc = float("inf"), None
+            return (manhattan_distance(cur_robot.position,cur_robot.package.destination),0)
+        my_cost = float("inf")
         for package in env.packages[0:2]:
-            if getattr(package, "on_board", False):
-                cost = manhattan_distance(cur_robot.position, package.position) + 0.2 * manhattan_distance(package.position, package.destination)
-                if my_cost > cost:
-                    my_cost = cost
-                    pc = package
-        return my_cost, pc
-
+            cost = manhattan_distance(cur_robot.position,package.position) + manhattan_distance(package.position,package.destination)
+            if my_cost > cost:
+                my_cost = cost
+                dst = package.position
+        return (my_cost,dst)
     def getdistocharge(cur_robot):
         my_cost = float("inf")
         for charge in env.charge_stations:
-            cost = manhattan_distance(cur_robot.position, charge.position)
+            cost = manhattan_distance(cur_robot.position,charge.position)
             my_cost = my_cost if my_cost < cost else cost
-        return 0 if my_cost == float("inf") else my_cost
+        return (-1)*my_cost
+    credit_diff = robot.credit - other_robot.credit
+    dst_my_nx_pac, dstrob = getdistopac(robot)
+    dst_other_nx_pac,dstother = getdistopac(other_robot)
+    dst_my_charge = getdistocharge(robot) if robot.battery < 9 and robot.credit > 0 else 0
+    battery_diff = robot.battery - other_robot.battery
+    dst_diff = dst_other_nx_pac - dst_my_nx_pac
+    adv = -dst_my_nx_pac if robot.package is None else 0
+    return 10*credit_diff + dst_diff + dst_my_charge + 10*battery_diff + 0.5*adv
 
-    def valofrob(cur_robot):
-        score_w = cur_robot.credit
 
-        dst_charge = getdistocharge(cur_robot)
-        should_charge = (cur_robot.battery <= dst_charge + 2) and (cur_robot.credit > 0)
-
-        battery_w = 0
-        if cur_robot.battery > 6:
-            battery_w = -(50 + (10 - dst_charge)) * 2
-        elif should_charge:
-            battery_w = (50 + (10 - dst_charge))
-
-        dst_pac, pc = getdistopac(cur_robot)
-
-        package_w = 0
-        if cur_robot.package is None:
-            if pc is not None:
-                pack_reward = manhattan_distance(pc.position, pc.destination) * 2
-                package_w = (pack_reward - manhattan_distance(cur_robot.position, pc.position)) + 60
-                if env.get_package_in(cur_robot.position) is not None:
-                    package_w += 250
-        else:
-            player_pack_reward = manhattan_distance(cur_robot.package.position, cur_robot.package.destination)
-            package_w = 100 + (player_pack_reward - manhattan_distance(cur_robot.position, cur_robot.package.destination))
-            if cur_robot.position == cur_robot.package.destination:
-                package_w += 2000
-
-        return score_w + package_w + battery_w
-
-    return valofrob(robot) - valofrob(other_robot)
 class AgentGreedyImproved(AgentGreedy):
     def heuristic(self, env: WarehouseEnv, robot_id: int):
         return smart_heuristic(env, robot_id)
@@ -100,7 +75,7 @@ class AgentMinimax(Agent):
             return "park"
 
         best_op = legal[0]
-        depth = 1
+        depth = 0
         while deadline > time.time():
             operators, children = self.successors(env, agent_id)
             if not operators:
@@ -109,7 +84,7 @@ class AgentMinimax(Agent):
             local_best_op = operators[0]
             local_best_val = float("-inf")
             for op, child in zip(operators, children):
-                val = RB_minimax(child, (agent_id + 1) % 2, depth - 1)
+                val = RB_minimax(child, (agent_id + 1) % 2, depth)
                 if val > local_best_val:
                     local_best_val = val
                     local_best_op = op
