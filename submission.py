@@ -31,8 +31,8 @@ def smart_heuristic(env: WarehouseEnv, robot_id: int):
     dst_my_charge = getdistocharge(robot) if robot.battery < 9 and robot.credit > 0 else 0
     battery_diff = robot.battery - other_robot.battery
     dst_diff = dst_other_nx_pac - dst_my_nx_pac
-    adv = -manhattan_distance(robot.position,dstrob) if robot.package is None else -manhattan_distance(robot.position,robot.package.destination)
-    return 5*credit_diff + dst_diff + dst_my_charge + (0.5)*battery_diff + adv
+    adv = -dst_my_nx_pac if robot.package is None else 0
+    return 10*credit_diff + dst_diff + dst_my_charge + (0.5)*battery_diff + 10*adv
 
 class AgentGreedyImproved(AgentGreedy):
     def heuristic(self, env: WarehouseEnv, robot_id: int):
@@ -74,7 +74,7 @@ class AgentMinimax(Agent):
             return "park"
 
         best_op = legal[0]
-        depth = 0
+        depth = 1
         while deadline > time.time():
             operators, children = self.successors(env, agent_id)
             if not operators:
@@ -83,7 +83,7 @@ class AgentMinimax(Agent):
             local_best_op = operators[0]
             local_best_val = float("-inf")
             for op, child in zip(operators, children):
-                val = RB_minimax(child, (agent_id + 1) % 2, depth)
+                val = RB_minimax(child, (agent_id + 1) % 2, depth - 1)
                 if val > local_best_val:
                     local_best_val = val
                     local_best_op = op
@@ -137,7 +137,7 @@ class AgentAlphaBeta(Agent):
             return "park"
 
         best_op = legal[0]
-        depth = 0
+        depth = 1
         while deadline > time.time():
             operators, children = self.successors(env, agent_id)
             if not operators:
@@ -146,7 +146,7 @@ class AgentAlphaBeta(Agent):
             local_best_op = operators[0]
             local_best_val = float("-inf")
             for op, child in zip(operators, children):
-                val = RB_alphabeta(child, (agent_id + 1) % 2, depth, float("-inf"), float("inf"))
+                val = RB_alphabeta(child, (agent_id + 1) % 2, depth - 1, float("-inf"), float("inf"))
                 if val > local_best_val:
                     local_best_val = val
                     local_best_op = op

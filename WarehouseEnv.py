@@ -351,7 +351,7 @@ class WarehouseEnv(object):
 
         self.window.blit(canvas, (0, 0))
         pygame.display.update()
-        self.clock.tick(1)
+        self.clock.tick(5)
 
         # Handle Pygame events
         for event in pygame.event.get():
