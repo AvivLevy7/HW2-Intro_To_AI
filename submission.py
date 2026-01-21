@@ -11,28 +11,36 @@ def smart_heuristic(env: WarehouseEnv, robot_id: int):
     other_robot = env.get_robot((robot_id + 1) % 2)
     def getdistopac(cur_robot):
         if cur_robot.package is not None:
-            return (manhattan_distance(cur_robot.position,cur_robot.package.destination),0)
-        my_cost = float("inf")
+            return manhattan_distance(cur_robot.position,cur_robot.package.destination),cur_robot.package
+        my_cost, pc = float("inf"), None
         for package in env.packages[0:2]:
-            cost = manhattan_distance(cur_robot.position,package.position) + manhattan_distance(package.position,package.destination)
+            cost = manhattan_distance(cur_robot.position,package.position) + (0.2)*manhattan_distance(package.position,package.destination)
             if my_cost > cost:
                 my_cost = cost
-                dst = package.position
-        return (my_cost,dst)
+                pc = package
+        return my_cost,pc
     def getdistocharge(cur_robot):
         my_cost = float("inf")
         for charge in env.charge_stations:
             cost = manhattan_distance(cur_robot.position,charge.position)
             my_cost = my_cost if my_cost < cost else cost
-        return (-1)*my_cost
+        return my_cost
     credit_diff = robot.credit - other_robot.credit
-    dst_my_nx_pac, dstrob = getdistopac(robot)
-    dst_other_nx_pac,dstother = getdistopac(other_robot)
-    dst_my_charge = getdistocharge(robot) if robot.battery < 9 and robot.credit > 0 else 0
+    dst_my_nx_pac, pc = getdistopac(robot)
+    dst_other_nx_pac, _ = getdistopac(other_robot)
+    dst_my_charge = 100 - 10 * getdistocharge(robot) if robot.battery < 9 and robot.credit > 0 else 0
     battery_diff = robot.battery - other_robot.battery
     dst_diff = dst_other_nx_pac - dst_my_nx_pac
-    adv = -dst_my_nx_pac if robot.package is None else 0
-    return 10*credit_diff + dst_diff + dst_my_charge + (0.5)*battery_diff + 10*adv
+    adv = 0
+    if robot.package is None:
+        adv = 350 if (p := env.get_package_in(robot.position)) is not None else 0
+        adv += manhattan_distance(pc.position,pc.destination)
+    else:
+        adv = (1000 if robot.position == pc.destination else 0) + (manhattan_distance(pc.position,pc.destination) * 2)
+
+    adv -= 10*(manhattan_distance(robot.position,pc.destination) if robot.package is not None else manhattan_distance(robot.position,pc.position)
+
+    return 8*credit_diff + 1.5*dst_diff - dst_my_charge + battery_diff + adv
 
 class AgentGreedyImproved(AgentGreedy):
     def heuristic(self, env: WarehouseEnv, robot_id: int):
