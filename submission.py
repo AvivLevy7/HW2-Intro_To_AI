@@ -11,7 +11,7 @@ def smart_heuristic(env: WarehouseEnv, robot_id: int):
     other_robot = env.get_robot((robot_id + 1) % 2)
     def getdistopac(cur_robot):
         if cur_robot.package is not None:
-            return manhattan_distance(cur_robot.position,cur_robot.package.destination)
+            return (manhattan_distance(cur_robot.position,cur_robot.package.destination),0)
         my_cost = float("inf")
         for package in env.packages[0:2]:
             cost = manhattan_distance(cur_robot.position,package.position) + manhattan_distance(package.position,package.destination)
