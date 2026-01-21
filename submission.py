@@ -32,14 +32,7 @@ def smart_heuristic(env: WarehouseEnv, robot_id: int):
     battery_diff = robot.battery - other_robot.battery
     dst_diff = dst_other_nx_pac - dst_my_nx_pac
     adv = -dst_my_nx_pac if robot.package is None else 0
-    can_pick = ("pick up" in env.get_legal_operators(robot_id))
-    can_drop = ("drop off" in env.get_legal_operators(robot_id))
-    immediate = 0
-    if can_drop:
-        immediate += 5000  # drop off now is huge
-    if can_pick:
-        immediate += 2000  # picking up now is very good
-    return 10*credit_diff + dst_diff + dst_my_charge + (0.5)*battery_diff + 10*adv + immediate
+    return 10*credit_diff + dst_diff + dst_my_charge + 10*battery_diff + 0.5*adv
 
 
 class AgentGreedyImproved(AgentGreedy):
