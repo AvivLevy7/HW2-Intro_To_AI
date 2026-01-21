@@ -32,7 +32,15 @@ def smart_heuristic(env: WarehouseEnv, robot_id: int):
     battery_diff = robot.battery - other_robot.battery
     dst_diff = dst_other_nx_pac - dst_my_nx_pac
     adv = -dst_my_nx_pac if robot.package is None else 0
-    return 10*credit_diff + dst_diff + dst_my_charge + (0.5)*battery_diff + 10*adv
+    can_pick = ("pick up" in env.get_legal_operators(robot_id))
+    can_drop = ("drop off" in env.get_legal_operators(robot_id))
+    immediate = 0
+    if can_drop:
+        immediate += 5000  # drop off now is huge
+    if can_pick:
+        immediate += 2000  # picking up now is very good
+    return 10*credit_diff + dst_diff + dst_my_charge + (0.5)*battery_diff + 10*adv + immediate
+
 
 class AgentGreedyImproved(AgentGreedy):
     def heuristic(self, env: WarehouseEnv, robot_id: int):
@@ -74,7 +82,7 @@ class AgentMinimax(Agent):
             return "park"
 
         best_op = legal[0]
-        depth = 1
+        depth = 0
         while deadline > time.time():
             operators, children = self.successors(env, agent_id)
             if not operators:
@@ -83,7 +91,7 @@ class AgentMinimax(Agent):
             local_best_op = operators[0]
             local_best_val = float("-inf")
             for op, child in zip(operators, children):
-                val = RB_minimax(child, (agent_id + 1) % 2, depth - 1)
+                val = RB_minimax(child, (agent_id + 1) % 2, depth)
                 if val > local_best_val:
                     local_best_val = val
                     local_best_op = op
