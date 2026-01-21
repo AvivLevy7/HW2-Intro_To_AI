@@ -5,8 +5,31 @@ import time
 
 
 # TODO: section a : 3
+
 def smart_heuristic(env: WarehouseEnv, robot_id: int):
-    pass
+    robot = env.get_robot(robot_id)
+    other_robot = env.get_robot((robot_id + 1) % 2)
+    def getdistopac(cur_robot):
+        if cur_robot.package is not None:
+            return manhattan_distance(cur_robot.position,cur_robot.package.destination)
+        my_cost = float("inf")
+        for package in env.packages:
+            cost = manhattan_distance(cur_robot.position,package.position) + manhattan_distance(package.position,package.destination)
+            my_cost = my_cost if my_cost < cost else cost
+        return my_cost
+    def getdistocharge(cur_robot):
+        my_cost = float("inf")
+        for charge in env.charge_stations:
+            cost = manhattan_distance(cur_robot.position,charge.position)
+            my_cost = my_cost if my_cost < cost else cost
+        return (-1)*my_cost
+    credit_diff = robot.credit - other_robot.credit
+    dst_my_nx_pac = getdistopac(robot)
+    dst_other_nx_pac = getdistopac(other_robot)
+    dst_my_charge = getdistocharge(robot) if robot.battery < 9 and robot.credit > 0 else 0
+    battery_diff = robot.battery - other_robot.battery
+    dst_diff = dst_other_nx_pac - dst_my_nx_pac
+    return 5*credit_diff + dst_diff + dst_my_charge + (0.5)*battery_diff
 
 class AgentGreedyImproved(AgentGreedy):
     def heuristic(self, env: WarehouseEnv, robot_id: int):
@@ -20,11 +43,11 @@ class AgentMinimax(Agent):
 
         def RB_minimax(state: WarehouseEnv, current_id: int, depth: int) -> float:
             if deadline <= time.time() or depth <= 0 or state.done():
-                return self.heuristic(state, agent_id)
+                return smart_heuristic(state, agent_id)
 
             operators, children = self.successors(state, current_id)
             if not operators:
-                return self.heuristic(state, agent_id)
+                return smart_heuristic(state, agent_id)
 
             other_id = (current_id + 1) % 2
 
@@ -77,11 +100,11 @@ class AgentAlphaBeta(Agent):
 
         def RB_alphabeta(state: WarehouseEnv, current_id: int, depth: int, alpha: float, beta: float) -> float:
             if deadline <= time.time() or depth <= 0 or state.done():
-                return self.heuristic(state, agent_id)
+                return smart_heuristic(state, agent_id)
 
             operators, children = self.successors(state, current_id)
             if not operators:
-                return self.heuristic(state, agent_id)
+                return smart_heuristic(state, agent_id)
 
             other_id = (current_id + 1) % 2
 
@@ -136,7 +159,65 @@ class AgentAlphaBeta(Agent):
 class AgentExpectimax(Agent):
     # TODO: section d : 3
     def run_step(self, env: WarehouseEnv, agent_id, time_limit):
-        raise NotImplementedError()
+        start_time = time.time()
+        deadline = start_time + 0.99 * time_limit
+
+        def RB_expectimax(state: WarehouseEnv, current_id: int, depth: int) -> float:
+            if deadline <= time.time() or depth <= 0 or state.done():
+                return smart_heuristic(state, agent_id)
+
+            operators, children = self.successors(state, current_id)
+            if not operators:
+                return smart_heuristic(state, agent_id)
+            def operator_val(operat):
+                return 3 if (operat == "move west" or operat == "pick up") else 1
+
+            other_id = (current_id + 1) % 2
+
+            if current_id == agent_id:
+                cur_max = float("-inf")
+                for child in children:
+                    cur_max = max(cur_max, RB_expectimax(child, other_id, depth - 1))
+                    if deadline <= time.time():
+                        break
+                return cur_max
+            else:
+                values = [operator_val(operat) for operat in operators]
+                sum_of_vals = sum(values)
+                if sum_of_vals == 0:
+                    return smart_heuristic(state,agent_id)
+                exp_max = 0
+                for vals, child in zip(values, children):
+                    exp_max += (vals / sum_of_vals)*RB_expectimax(child,other_id,depth-1)
+                    if deadline <= time.time():
+                        break
+                return exp_max
+
+        legal = env.get_legal_operators(agent_id)
+        if not legal:
+            return "park"
+
+        best_op = legal[0]
+        depth = 0
+        while deadline > time.time():
+            operators, children = self.successors(env, agent_id)
+            if not operators:
+                break
+
+            local_best_op = operators[0]
+            local_best_val = float("-inf")
+            for op, child in zip(operators, children):
+                val = RB_expectimax(child, (agent_id + 1) % 2, depth)
+                if val > local_best_val:
+                    local_best_val = val
+                    local_best_op = op
+                if deadline <= time.time():
+                    break
+
+            best_op = local_best_op
+            depth += 1
+
+        return best_op
 
 
 # here you can check specific paths to get to know the environment
