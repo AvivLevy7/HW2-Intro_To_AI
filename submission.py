@@ -4,12 +4,10 @@ import random
 import time
 
 
-# TODO: section a : 3
 
 def smart_heuristic(env: WarehouseEnv, robot_id: int):
     robot = env.get_robot(robot_id)
     other_robot = env.get_robot((robot_id + 1) % 2)
-   
     def getdistopac(cur_robot):
         if cur_robot.package is not None:
             return (manhattan_distance(cur_robot.position,cur_robot.package.destination),0)
@@ -48,7 +46,9 @@ class AgentMinimax(Agent):
         deadline = start_time + 0.99 * time_limit
 
         def RB_minimax(state: WarehouseEnv, current_id: int, depth: int) -> float:
-            if deadline <= time.time() or depth <= 0 or state.done():
+            if deadline <= time.time():
+                raise TimeoutError()
+            if depth <= 0 or state.done():
                 return smart_heuristic(state, agent_id)
 
             operators, children = self.successors(state, current_id)
@@ -86,7 +86,10 @@ class AgentMinimax(Agent):
             local_best_op = operators[0]
             local_best_val = float("-inf")
             for op, child in zip(operators, children):
-                val = RB_minimax(child, (agent_id + 1) % 2, depth)
+                try:
+                    val = RB_minimax(child, (agent_id + 1) % 2, depth)
+                except TimeoutError:
+                    return best_op
                 if val > local_best_val:
                     local_best_val = val
                     local_best_op = op
@@ -105,7 +108,9 @@ class AgentAlphaBeta(Agent):
         deadline = start_time + 0.99 * time_limit
 
         def RB_alphabeta(state: WarehouseEnv, current_id: int, depth: int, alpha: float, beta: float) -> float:
-            if deadline <= time.time() or depth <= 0 or state.done():
+            if deadline <= time.time():
+                raise TimeoutError()
+            if depth <= 0 or state.done():
                 return smart_heuristic(state, agent_id)
 
             operators, children = self.successors(state, current_id)
@@ -149,12 +154,14 @@ class AgentAlphaBeta(Agent):
             local_best_op = operators[0]
             local_best_val = float("-inf")
             for op, child in zip(operators, children):
-                val = RB_alphabeta(child, (agent_id + 1) % 2, depth - 1, float("-inf"), float("inf"))
+                try:
+                    val = RB_alphabeta(child, (agent_id + 1) % 2, depth - 1, float("-inf"), float("inf"))
+                except TimeoutError:
+                    return best_op
+
                 if val > local_best_val:
                     local_best_val = val
                     local_best_op = op
-                if deadline <= time.time():
-                    break
 
             best_op = local_best_op
             depth += 1
