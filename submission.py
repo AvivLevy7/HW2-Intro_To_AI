@@ -9,12 +9,7 @@ import time
 def smart_heuristic(env: WarehouseEnv, robot_id: int):
     robot = env.get_robot(robot_id)
     other_robot = env.get_robot((robot_id + 1) % 2)
-    if env.done():
-        if robot.credit > other_robot.credit:
-            return float("inf")
-        if robot.credit < other_robot.credit:
-            return float("-inf")
-        return 0.0
+   
     def getdistopac(cur_robot):
         if cur_robot.package is not None:
             return (manhattan_distance(cur_robot.position,cur_robot.package.destination),0)
