@@ -176,9 +176,10 @@ class AgentExpectimax(Agent):
         deadline = start_time + 0.99 * time_limit
 
         def RB_expectimax(state: WarehouseEnv, current_id: int, depth: int) -> float:
-            if deadline <= time.time() or depth <= 0 or state.done():
+            if deadline <= time.time():
+                raise TimeoutError()
+            if depth <= 0 or state.done():
                 return smart_heuristic(state, agent_id)
-
             operators, children = self.successors(state, current_id)
             if not operators:
                 return smart_heuristic(state, agent_id)
@@ -220,7 +221,10 @@ class AgentExpectimax(Agent):
             local_best_op = operators[0]
             local_best_val = float("-inf")
             for op, child in zip(operators, children):
-                val = RB_expectimax(child, (agent_id + 1) % 2, depth)
+                try:
+                    val = RB_expectimax(child, (agent_id + 1) % 2, depth)
+                except TimeoutError:
+                    return best_op
                 if val > local_best_val:
                     local_best_val = val
                     local_best_op = op
@@ -231,6 +235,7 @@ class AgentExpectimax(Agent):
             depth += 1
 
         return best_op
+
 
 
 # here you can check specific paths to get to know the environment
