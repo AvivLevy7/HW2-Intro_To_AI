@@ -25,6 +25,10 @@ def smart_heuristic(env: WarehouseEnv, robot_id: int):
             my_cost = my_cost if my_cost < cost else cost
         return (-1)*my_cost
     credit_diff = robot.credit - other_robot.credit
+    if credit_diff > 0 and other_robot.battery < 1:
+        return float("inf")
+    if credit_diff < 0 and other_robot.battery < 1:
+        return float("-inf")
     dst_my_nx_pac, dstrob = getdistopac(robot)
     dst_other_nx_pac,dstother = getdistopac(other_robot)
     dst_my_charge = getdistocharge(robot) if robot.battery < 5 and robot.credit > 0 else 0
@@ -43,7 +47,7 @@ class AgentGreedyImproved(AgentGreedy):
 class AgentMinimax(Agent):
     def run_step(self, env: WarehouseEnv, agent_id, time_limit):
         start_time = time.time()
-        deadline = start_time + 0.99 * time_limit
+        deadline = start_time + 0.95 * time_limit
 
         def RB_minimax(state: WarehouseEnv, current_id: int, depth: int) -> float:
             if deadline <= time.time():
@@ -76,9 +80,10 @@ class AgentMinimax(Agent):
         if not legal:
             return "park"
 
+        robot = env.get_robot(agent_id)
         best_op = legal[0]
-        depth = 0
-        while deadline > time.time():
+        depth = 1
+        while deadline > time.time() and robot.battery > 0 and depth < env.num_steps / 2:
             operators, children = self.successors(env, agent_id)
             if not operators:
                 break
@@ -87,7 +92,7 @@ class AgentMinimax(Agent):
             local_best_val = float("-inf")
             for op, child in zip(operators, children):
                 try:
-                    val = RB_minimax(child, (agent_id + 1) % 2, depth)
+                    val = RB_minimax(child, (agent_id + 1) % 2, depth - 1)
                 except TimeoutError:
                     return best_op
                 if val > local_best_val:
@@ -105,7 +110,7 @@ class AgentMinimax(Agent):
 class AgentAlphaBeta(Agent):
     def run_step(self, env: WarehouseEnv, agent_id, time_limit):
         start_time = time.time()
-        deadline = start_time + 0.99 * time_limit
+        deadline = start_time + 0.95 * time_limit
 
         def RB_alphabeta(state: WarehouseEnv, current_id: int, depth: int, alpha: float, beta: float) -> float:
             if deadline <= time.time():
@@ -144,9 +149,10 @@ class AgentAlphaBeta(Agent):
         if not legal:
             return "park"
 
+        robot = env.get_robot(agent_id)
         best_op = legal[0]
         depth = 1
-        while deadline > time.time():
+        while deadline > time.time() and robot.battery > 0 and depth < env.num_steps / 2:
             operators, children = self.successors(env, agent_id)
             if not operators:
                 break
@@ -173,7 +179,7 @@ class AgentExpectimax(Agent):
     # TODO: section d : 3
     def run_step(self, env: WarehouseEnv, agent_id, time_limit):
         start_time = time.time()
-        deadline = start_time + 0.99 * time_limit
+        deadline = start_time + 0.95 * time_limit
 
         def RB_expectimax(state: WarehouseEnv, current_id: int, depth: int) -> float:
             if deadline <= time.time():
@@ -199,10 +205,10 @@ class AgentExpectimax(Agent):
                 values = [operator_val(operat) for operat in operators]
                 sum_of_vals = sum(values)
                 if sum_of_vals == 0:
-                    return smart_heuristic(state,agent_id)
+                    return smart_heuristic(state, agent_id)
                 exp_max = 0
                 for vals, child in zip(values, children):
-                    exp_max += (vals / sum_of_vals)*RB_expectimax(child,other_id,depth-1)
+                    exp_max += (vals / sum_of_vals)*RB_expectimax(child, other_id, depth - 1)
                     if deadline <= time.time():
                         break
                 return exp_max
@@ -211,9 +217,10 @@ class AgentExpectimax(Agent):
         if not legal:
             return "park"
 
+        robot = env.get_robot(agent_id)
         best_op = legal[0]
-        depth = 0
-        while deadline > time.time():
+        depth = 1
+        while deadline > time.time() and robot.battery > 0 and depth < env.num_steps / 2:
             operators, children = self.successors(env, agent_id)
             if not operators:
                 break
@@ -222,7 +229,7 @@ class AgentExpectimax(Agent):
             local_best_val = float("-inf")
             for op, child in zip(operators, children):
                 try:
-                    val = RB_expectimax(child, (agent_id + 1) % 2, depth)
+                    val = RB_expectimax(child, (agent_id + 1) % 2, depth - 1)
                 except TimeoutError:
                     return best_op
                 if val > local_best_val:
