@@ -4,7 +4,6 @@ import random
 import time
 
 
-# TODO: section a : 3
 
 def smart_heuristic(env: WarehouseEnv, robot_id: int):
     robot = env.get_robot(robot_id)
@@ -28,11 +27,12 @@ def smart_heuristic(env: WarehouseEnv, robot_id: int):
     credit_diff = robot.credit - other_robot.credit
     dst_my_nx_pac, dstrob = getdistopac(robot)
     dst_other_nx_pac,dstother = getdistopac(other_robot)
-    dst_my_charge = getdistocharge(robot) if robot.battery < 9 and robot.credit > 0 else 0
+    dst_my_charge = getdistocharge(robot) if robot.battery < 5 and robot.credit > 0 else 0
     battery_diff = robot.battery - other_robot.battery
     dst_diff = dst_other_nx_pac - dst_my_nx_pac
     adv = -dst_my_nx_pac if robot.package is None else 0
     return 10*credit_diff + dst_diff + dst_my_charge + 10*battery_diff + 0.5*adv
+
 
 
 class AgentGreedyImproved(AgentGreedy):
@@ -46,7 +46,9 @@ class AgentMinimax(Agent):
         deadline = start_time + 0.99 * time_limit
 
         def RB_minimax(state: WarehouseEnv, current_id: int, depth: int) -> float:
-            if deadline <= time.time() or depth <= 0 or state.done():
+            if deadline <= time.time():
+                raise TimeoutError()
+            if depth <= 0 or state.done():
                 return smart_heuristic(state, agent_id)
 
             operators, children = self.successors(state, current_id)
@@ -84,7 +86,10 @@ class AgentMinimax(Agent):
             local_best_op = operators[0]
             local_best_val = float("-inf")
             for op, child in zip(operators, children):
-                val = RB_minimax(child, (agent_id + 1) % 2, depth)
+                try:
+                    val = RB_minimax(child, (agent_id + 1) % 2, depth)
+                except TimeoutError:
+                    return best_op
                 if val > local_best_val:
                     local_best_val = val
                     local_best_op = op
@@ -103,7 +108,9 @@ class AgentAlphaBeta(Agent):
         deadline = start_time + 0.99 * time_limit
 
         def RB_alphabeta(state: WarehouseEnv, current_id: int, depth: int, alpha: float, beta: float) -> float:
-            if deadline <= time.time() or depth <= 0 or state.done():
+            if deadline <= time.time():
+                raise TimeoutError()
+            if depth <= 0 or state.done():
                 return smart_heuristic(state, agent_id)
 
             operators, children = self.successors(state, current_id)
@@ -147,12 +154,14 @@ class AgentAlphaBeta(Agent):
             local_best_op = operators[0]
             local_best_val = float("-inf")
             for op, child in zip(operators, children):
-                val = RB_alphabeta(child, (agent_id + 1) % 2, depth - 1, float("-inf"), float("inf"))
+                try:
+                    val = RB_alphabeta(child, (agent_id + 1) % 2, depth - 1, float("-inf"), float("inf"))
+                except TimeoutError:
+                    return best_op
+
                 if val > local_best_val:
                     local_best_val = val
                     local_best_op = op
-                if deadline <= time.time():
-                    break
 
             best_op = local_best_op
             depth += 1
@@ -167,9 +176,10 @@ class AgentExpectimax(Agent):
         deadline = start_time + 0.99 * time_limit
 
         def RB_expectimax(state: WarehouseEnv, current_id: int, depth: int) -> float:
-            if deadline <= time.time() or depth <= 0 or state.done():
+            if deadline <= time.time():
+                raise TimeoutError()
+            if depth <= 0 or state.done():
                 return smart_heuristic(state, agent_id)
-
             operators, children = self.successors(state, current_id)
             if not operators:
                 return smart_heuristic(state, agent_id)
@@ -211,7 +221,10 @@ class AgentExpectimax(Agent):
             local_best_op = operators[0]
             local_best_val = float("-inf")
             for op, child in zip(operators, children):
-                val = RB_expectimax(child, (agent_id + 1) % 2, depth)
+                try:
+                    val = RB_expectimax(child, (agent_id + 1) % 2, depth)
+                except TimeoutError:
+                    return best_op
                 if val > local_best_val:
                     local_best_val = val
                     local_best_op = op
@@ -222,6 +235,7 @@ class AgentExpectimax(Agent):
             depth += 1
 
         return best_op
+
 
 
 # here you can check specific paths to get to know the environment
