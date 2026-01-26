@@ -25,10 +25,6 @@ def smart_heuristic(env: WarehouseEnv, robot_id: int):
             my_cost = my_cost if my_cost < cost else cost
         return (-1)*my_cost
     credit_diff = robot.credit - other_robot.credit
-    if credit_diff > 0 and other_robot.battery < 1:
-        return float("inf")
-    if credit_diff < 0 and other_robot.battery < 1:
-        return float("-inf")
     dst_my_nx_pac, dstrob = getdistopac(robot)
     dst_other_nx_pac,dstother = getdistopac(other_robot)
     dst_my_charge = getdistocharge(robot) if robot.battery < 5 and robot.credit > 0 else 0
@@ -48,6 +44,9 @@ class AgentMinimax(Agent):
     def run_step(self, env: WarehouseEnv, agent_id, time_limit):
         start_time = time.time()
         deadline = start_time + 0.95 * time_limit
+        robot = env.get_robot(agent_id)
+        other_robot = env.get_robot((agent_id + 1) % 2)
+        credit_diff = robot.credit - other_robot.credit
 
         def RB_minimax(state: WarehouseEnv, current_id: int, depth: int) -> float:
             if deadline <= time.time():
@@ -80,7 +79,9 @@ class AgentMinimax(Agent):
         if not legal:
             return "park"
 
-        robot = env.get_robot(agent_id)
+        if credit_diff > 0 and other_robot.battery < 1:
+            return legal[0]
+
         best_op = legal[0]
         depth = 1
         while deadline > time.time() and robot.battery > 0 and depth < env.num_steps / 2:
@@ -111,6 +112,9 @@ class AgentAlphaBeta(Agent):
     def run_step(self, env: WarehouseEnv, agent_id, time_limit):
         start_time = time.time()
         deadline = start_time + 0.95 * time_limit
+        robot = env.get_robot(agent_id)
+        other_robot = env.get_robot((agent_id + 1) % 2)
+        credit_diff = robot.credit - other_robot.credit
 
         def RB_alphabeta(state: WarehouseEnv, current_id: int, depth: int, alpha: float, beta: float) -> float:
             if deadline <= time.time():
@@ -149,7 +153,9 @@ class AgentAlphaBeta(Agent):
         if not legal:
             return "park"
 
-        robot = env.get_robot(agent_id)
+        if credit_diff > 0 and other_robot.battery < 1:
+            return legal[0]
+
         best_op = legal[0]
         depth = 1
         while deadline > time.time() and robot.battery > 0 and depth < env.num_steps / 2:
@@ -176,10 +182,12 @@ class AgentAlphaBeta(Agent):
 
 
 class AgentExpectimax(Agent):
-    # TODO: section d : 3
     def run_step(self, env: WarehouseEnv, agent_id, time_limit):
         start_time = time.time()
         deadline = start_time + 0.95 * time_limit
+        robot = env.get_robot(agent_id)
+        other_robot = env.get_robot((agent_id + 1) % 2)
+        credit_diff = robot.credit - other_robot.credit
 
         def RB_expectimax(state: WarehouseEnv, current_id: int, depth: int) -> float:
             if deadline <= time.time():
@@ -217,7 +225,9 @@ class AgentExpectimax(Agent):
         if not legal:
             return "park"
 
-        robot = env.get_robot(agent_id)
+        if credit_diff > 0 and other_robot.battery < 1:
+            return legal[0]
+
         best_op = legal[0]
         depth = 1
         while deadline > time.time() and robot.battery > 0 and depth < env.num_steps / 2:
